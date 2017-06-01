@@ -9,7 +9,6 @@ public class ZiarnoRekrystalizationInfo {
 
     private boolean isOnEdge;
     private double actualCounter;
-    private boolean spawnedZiarno;
 
     public boolean isOnEdge() {
         return isOnEdge;

@@ -1,6 +1,7 @@
 package automatKomorkowy.DwoDimension.ziarna;
 
 import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.ZiarnoNeighGetterIf;
+import automatKomorkowy.DwoDimension.ziarna.rekry.Rekrystalizacja;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -18,10 +19,17 @@ public class ZiarnaField {
     private int freeCellsNumber;
     private boolean crossBorders;
     private boolean clickable;
+    private Rekrystalizacja rekrInter;
 
     public ZiarnaField()
     {
         paused = true;
+    }
+    
+    public void RekrystalizacjaInit()
+    {
+    	rekrInter = new Rekrystalizacja();
+    	
     }
 
     public void setClickable(boolean clickable) {
@@ -172,7 +180,7 @@ public class ZiarnaField {
         else return Color.white;
     }
 
-    private ArrayList<Ziarno> CreateRandomZiarnos(int quantity)
+    public ArrayList<Ziarno> CreateRandomZiarnos(int quantity)
     {
         Random rand = new Random();
         int[] randed = new int[3];
@@ -199,6 +207,15 @@ public class ZiarnaField {
                         break;
                     }
                 }
+                for(int j=0;j<contentSources.size();j++)
+                {
+                	if (!IsColorDifferent(randed,contentSources.get(j).getCol()))
+                    {
+                        alike = true;
+                        rerollCounter++;
+                        break;
+                    }
+                }
             } while (alike);
 
             nowe = new Ziarno();
@@ -210,9 +227,9 @@ public class ZiarnaField {
     }
     private boolean IsColorDifferent(int[] arrCol,Color col)
     {
-        if(Math.abs(col.getRed() - arrCol[0]) > 30) return true;
-        if(Math.abs(col.getGreen() - arrCol[1]) > 30) return true;
-        if(Math.abs(col.getBlue() - arrCol[2]) > 30) return true;
+        if(Math.abs(col.getRed() - arrCol[0]) > 5) return true;
+        if(Math.abs(col.getGreen() - arrCol[1]) > 5) return true;
+        if(Math.abs(col.getBlue() - arrCol[2]) > 5) return true;
         return false;
     }
 

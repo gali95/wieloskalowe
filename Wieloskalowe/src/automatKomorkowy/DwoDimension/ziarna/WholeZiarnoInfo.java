@@ -9,8 +9,19 @@ public class WholeZiarnoInfo {
 
     private int startX,startY;
     private Color col;
+    private boolean rekrystalized;
+    
+    
 
-    public int getStartX() {
+    public boolean isRekrystalized() {
+		return rekrystalized;
+	}
+
+	public void setRekrystalized(boolean rekrystalized) {
+		this.rekrystalized = rekrystalized;
+	}
+
+	public int getStartX() {
         return startX;
     }
 
