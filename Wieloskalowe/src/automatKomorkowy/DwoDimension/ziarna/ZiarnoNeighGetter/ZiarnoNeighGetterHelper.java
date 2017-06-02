@@ -2,6 +2,8 @@ package automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter;
 
 import automatKomorkowy.DwoDimension.ziarna.Ziarno;
 
+import java.util.ArrayList;
+
 /**
  * Created by Lach on 2017-05-12.
  */
@@ -9,9 +11,9 @@ public class ZiarnoNeighGetterHelper {
 
     public static Ziarno[] GetZiarnosWithOffset(Ziarno[][] source, int startX, int startY, int[][] offsets,boolean crossBorders)
     {
-        Ziarno[] ret;
+        ArrayList<Ziarno> ret;
         if(startX<0 || startX>=source.length || startY<0 || startY>=source[0].length ) return null;
-        ret = new Ziarno[offsets.length];
+        ret = new ArrayList<>();
         int sasiadX,sasiadY;
         boolean any = false;
         for(int i=0;i<offsets.length;i++)
@@ -34,10 +36,14 @@ public class ZiarnoNeighGetterHelper {
                 any = true;
 
             }
-            ret[i] = source[sasiadX%source.length][sasiadY%source[0].length];
+            ret.add(source[sasiadX%source.length][sasiadY%source[0].length]);
 
         }
-        if(any) return ret;
+        if(any)
+        {
+            Ziarno[] ret2 = new Ziarno[ret.size()];
+            return ret.toArray(ret2);
+        }
         else return null;
     }
     

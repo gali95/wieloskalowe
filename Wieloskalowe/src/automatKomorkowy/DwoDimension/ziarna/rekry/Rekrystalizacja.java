@@ -20,11 +20,37 @@ public class Rekrystalizacja {
     private int partsOfLeftover;
     private double energyNeededToZiarno;   // TODO ustawic
     private ZiarnaField ziarnaField;
+
+    private double modA,modB;
+    private double timer=0,timerIncrease=0.001;
+    private double increaseBase;
     
     private ArrayList<Ziarno> Graniczne;
 
-    
-    
+    public void StartRekrystalization(Ziarno[][] content, int setPartsOfLeftover) {
+
+        SetPartsOfLeftover(10);
+        ResetRekrystalizationInfo(content);
+        SetIsOnEdgeInfo(content);
+        SetZiarnosCounterValue(content,0);
+    }
+
+    public double getModA() {
+        return modA;
+    }
+
+    public void setModA(double modA) {
+        this.modA = modA;
+    }
+
+    public double getModB() {
+        return modB;
+    }
+
+    public void setModB(double modB) {
+        this.modB = modB;
+    }
+
     public ZiarnoNeighGetterIf getNeighGetter() {
 		return neighGetter;
 	}
@@ -81,15 +107,16 @@ public class Rekrystalizacja {
 		this.ziarnaField = ziarnaField;
 	}
 
-	public void SetPartsOfLeftover(Ziarno[][] content)  // TODO wywylac na poczatku
+	public void SetPartsOfLeftover(int newParts)  // TODO wywylac na poczatku
     {
-    	partsOfLeftover = (int)(content.length * content[0].length * 0.01);
+    	partsOfLeftover = newParts;
     }
     
     public void NextIteration(Ziarno[][] content)
     {
     	if(content == null) return;
     	double energyLeftover = 0;
+        CountIncreaseBase(content);
         for (int i = 0; i < content.length; i++)
         {
             for (int j = 0; j < content[0].length; j++) {
@@ -102,6 +129,11 @@ public class Rekrystalizacja {
                 		counterIncrease *= edgeModifier;
                 		energyLeftover += GetIncreaseBase() - counterIncrease;
                 	}
+                	else
+                    {
+                        counterIncrease *= normalModifier;
+                        energyLeftover += GetIncreaseBase() - counterIncrease;
+                    }
                 	content[i][j].getRekrInfo().setActualCounter(content[i][j].getRekrInfo().getActualCounter() + counterIncrease);
                 	
                 }
@@ -140,7 +172,7 @@ public class Rekrystalizacja {
         for (int i = 0; i < content.length; i++)        /// rozrost nowych ziaren powstalych przy rekrystalizacji
         {
             for (int j = 0; j < content[0].length; j++) {
-            	if(!content[i][j].getMainInfo().isRekrystalized() && !content[i][j].getFreshMainInfo().isRekrystalized())
+            	if(!content[i][j].getMainInfo().isRekrystalized() && (content[i][j].getFreshMainInfo() == null || !content[i][j].getFreshMainInfo().isRekrystalized()))
             	{
             		WholeZiarnoInfo hegemon = GetMostOftenNeighbour(content,i, j);
                 	if (hegemon != null) {
@@ -182,7 +214,7 @@ public class Rekrystalizacja {
     public void SetIsOnEdgeInfo(Ziarno[][] entry)
     {
         if(entry == null) return;
-        Graniczne = new ArrayList();
+        Graniczne = new ArrayList<>();
         
         for(int i=0;i<entry.length;i++)
         {
@@ -232,7 +264,20 @@ public class Rekrystalizacja {
 
     public double GetIncreaseBase()  // TODO cała ta funkcja
     {
-        return 5;
+        return increaseBase;
+    }
+
+    public void CountIncreaseBase(Ziarno[][] entry)
+    {
+        double diff = CountFormula(timer+timerIncrease) - CountFormula(timer);
+        diff /= entry.length * entry[0].length;
+        increaseBase = diff;
+        timer += timerIncrease;
+    }
+
+    private double CountFormula(double tiem)
+    {
+        return modA/modB+(1-modA/modB)*Math.exp(-modB*tiem);
     }
 
     private WholeZiarnoInfo GetMostOftenNeighbour(Ziarno[][] content, int x, int y)
@@ -288,7 +333,10 @@ public class Rekrystalizacja {
         }
         Random rand = new Random();
 
-        return ziarC[dolosowania.get(rand.nextInt(dolosowania.size()))].z;
+        if(dolosowania.size() > 0)
+            return ziarC[dolosowania.get(rand.nextInt(dolosowania.size()))].z;
+        else
+            return null;
     }
 
 }

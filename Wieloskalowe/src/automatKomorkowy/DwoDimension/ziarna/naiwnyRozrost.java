@@ -27,6 +27,10 @@ public class naiwnyRozrost {
     private JButton spawnZPromieniemButton;
     private JTextField promienTextField1;
     private JCheckBox spawnowanieKlikniecemCheckBox;
+    private JButton rekrystalizationButton;
+    private JTextField textField1;
+    private JButton monteCarlosButton;
+    private JTextField textField2;
     public boolean paused;
     public ZiarnaField k;
     public GUIScreen sele;
@@ -85,6 +89,11 @@ public class naiwnyRozrost {
                 {
                     k.SetNewRandomAwaySources(Integer.parseInt(randomCountTextField.getText()),Integer.parseInt(promienTextField1.getText()));
                 }
+                else if(e.getSource()==rekrystalizationButton)
+                {
+                    k.RekrystalizacjaInit();
+                    k.setDoRekryst(true);
+                }
             }
         };
         button1.addActionListener(act);
@@ -96,6 +105,21 @@ public class naiwnyRozrost {
         spawnRównomiernyButton.addActionListener(act);
         spawnowanieKlikniecemCheckBox.addActionListener(act);
         spawnZPromieniemButton.addActionListener(act);
+        rekrystalizationButton.addActionListener(act);
+        textField1.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                k.setRekrLeftover(Integer.valueOf(textField1.getText()));
+            }
+        });
+        monteCarlosButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                k.MonteCarloInit(Integer.valueOf(textField2.getText()));
+                k.setDoMonteCarlo(true);
+            }
+        });
     }
 
     public static void main(String[] args) {
@@ -111,7 +135,7 @@ public class naiwnyRozrost {
         while(true)
         {
             try {
-                Thread.sleep(100);
+                Thread.sleep(10);
                 gui.k.NextIteration();
                 gui.sele.updateUI();
             } catch (InterruptedException e) {

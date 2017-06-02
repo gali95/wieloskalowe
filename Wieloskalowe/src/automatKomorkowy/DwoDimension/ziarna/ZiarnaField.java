@@ -5,7 +5,11 @@ import automatKomorkowy.DwoDimension.ziarna.rekry.Rekrystalizacja;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Random;
+
+import static java.util.Collections.shuffle;
 
 /**
  * Created by Lach on 2017-05-05.
@@ -20,16 +24,54 @@ public class ZiarnaField {
     private boolean crossBorders;
     private boolean clickable;
     private Rekrystalizacja rekrInter;
+    private boolean doRekryst;
+    private int rekrLeftover;
+    private boolean doMonteCarlo;
+    private LinkedList<Ziarno> randomZiarnos;
+
+    public boolean isDoMonteCarlo() {
+        return doMonteCarlo;
+    }
+
+    public void setDoMonteCarlo(boolean doMonteCarlo) {
+        this.doMonteCarlo = doMonteCarlo;
+    }
+
+    public void setRekrLeftover(int rekrLeftover) {
+        this.rekrLeftover = rekrLeftover;
+    }
+
+    public Rekrystalizacja getRekrInter() {
+        return rekrInter;
+    }
+
+    public boolean isDoRekryst() {
+        return doRekryst;
+    }
+
+    public void setDoRekryst(boolean doRekryst) {
+        this.doRekryst = doRekryst;
+    }
 
     public ZiarnaField()
     {
         paused = true;
+        rekrLeftover = 100;
     }
     
     public void RekrystalizacjaInit()
     {
     	rekrInter = new Rekrystalizacja();
-    	
+        rekrInter.setNeighGetter(neighGetter);
+        rekrInter.setCrossBorder(crossBorders);
+        rekrInter.setNormalModifier(0.2);
+        rekrInter.setEdgeModifier(0.8);
+        rekrInter.setEnergyNeededToZiarno(46842668.24);
+        rekrInter.setZiarnaField(this);
+        rekrInter.setModA(86710969050178.5);
+        rekrInter.setModB(9.41268203527779);
+        doRekryst = false;
+        rekrInter.StartRekrystalization(content,rekrLeftover);
     }
 
     public void setClickable(boolean clickable) {
@@ -50,6 +92,10 @@ public class ZiarnaField {
 
     public void setNeighGetter(ZiarnoNeighGetterIf neighGetter) {
         this.neighGetter = neighGetter;
+        if(rekrInter != null)
+        {
+            rekrInter.setNeighGetter(neighGetter);
+        }
     }
 
     public boolean isPaused() {
@@ -120,6 +166,16 @@ public class ZiarnaField {
 
         if(content == null) return;
         if(paused) return;
+        if(doRekryst)
+        {
+            rekrInter.NextIteration(content);
+            return;
+        }
+        if(doMonteCarlo)
+        {
+            MonteCarloNextIteration();
+            return;
+        }
         Ziarno newContent[][] = new Ziarno[content.length][content[0].length];
         for (int i = 0; i < content.length; i++)
         {
@@ -156,6 +212,8 @@ public class ZiarnaField {
         }
         freeCellsNumber = x*y;
         contentSources = new ArrayList<>();
+        doRekryst = false;
+        doMonteCarlo = false;
     }
 
     public int GetXSize()
@@ -344,6 +402,73 @@ public class ZiarnaField {
     {
         if(content==null) return false;
         return true;
+    }
+
+    public void MonteCarloInit(int quantity)
+    {
+        CreateEmpty(GetXSize(),GetYSize());
+        contentSources.addAll(CreateRandomZiarnos(quantity));
+        Random rand = new Random();
+
+        randomZiarnos = new LinkedList<>();
+        for(int i=0;i<content.length;i++)
+        {
+            for(int j=0;j<content[0].length;j++)
+            {
+                content[i][j].setMainInfo(contentSources.get(rand.nextInt(contentSources.size())).getMainInfo());
+                content[i][j].setIndexX(i);
+                content[i][j].setIndexY(j);
+                randomZiarnos.add(content[i][j]);
+            }
+        }
+    }
+
+    private int MonteCarloCountOthers(int x,int y)
+    {
+        Ziarno[] neigh = neighGetter.GetNeigh(content,x,y,crossBorders);
+
+        if(neigh==null)
+        {
+            return 0;
+        }
+        int ret = 0;
+        for(int i=0;i<neigh.length;i++)
+        {
+            if(neigh[i]!=null)
+            {
+                if(neigh[i].getMainInfo()!=content[x][y].getMainInfo())
+                    ret++;
+            }
+        }
+        return ret;
+    }
+
+    private void MonteCarloNextIteration()
+    {
+        shuffle(randomZiarnos);
+        ListIterator<Ziarno> it = randomZiarnos.listIterator(0);
+        Random rand = new Random();
+        Ziarno selected = randomZiarnos.getFirst();
+        int previousVal;
+        WholeZiarnoInfo prevInfo;
+
+        try {
+            while (true) {
+                previousVal = MonteCarloCountOthers(selected.getIndexX(), selected.getIndexY());
+                prevInfo = selected.getMainInfo();
+
+                selected.setMainInfo(contentSources.get(rand.nextInt(contentSources.size())).getMainInfo());
+                if (previousVal < MonteCarloCountOthers(selected.getIndexX(), selected.getIndexY()))
+                    selected.setMainInfo(prevInfo);
+
+                if (!it.hasNext()) break;
+                selected = it.next();
+            }
+        }
+        catch (NullPointerException c)
+        {
+
+        }
     }
 
 }

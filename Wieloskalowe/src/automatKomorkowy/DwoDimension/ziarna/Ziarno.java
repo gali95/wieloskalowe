@@ -11,6 +11,16 @@ public class Ziarno {
 
     private WholeZiarnoInfo mainInfo;
     private WholeZiarnoInfo freshMainInfo;
+    private int monteCarloAlikes;
+    private int indexX,indexY;
+
+    public int getMonteCarloAlikes() {
+        return monteCarloAlikes;
+    }
+
+    public void setMonteCarloAlikes(int monteCarloAlikes) {
+        this.monteCarloAlikes = monteCarloAlikes;
+    }
 
     public void ReplaceOldMainInfo()
     {
@@ -18,6 +28,22 @@ public class Ziarno {
             setMainInfo(freshMainInfo);
             freshMainInfo = null;
         }
+    }
+
+    public int getIndexX() {
+        return indexX;
+    }
+
+    public void setIndexX(int indexX) {
+        this.indexX = indexX;
+    }
+
+    public int getIndexY() {
+        return indexY;
+    }
+
+    public void setIndexY(int indexY) {
+        this.indexY = indexY;
     }
 
     public WholeZiarnoInfo getFreshMainInfo() {
