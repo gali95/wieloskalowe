@@ -10,8 +10,16 @@ public class WholeZiarnoInfo {
     private int startX,startY;
     private Color col;
     private boolean rekrystalized;
-    
-    
+    private boolean wtracenie;
+    public boolean stopped = false;
+
+    public boolean isWtracenie() {
+        return wtracenie;
+    }
+
+    public void setWtracenie(boolean wtracenie) {
+        this.wtracenie = wtracenie;
+    }
 
     public boolean isRekrystalized() {
 		return rekrystalized;

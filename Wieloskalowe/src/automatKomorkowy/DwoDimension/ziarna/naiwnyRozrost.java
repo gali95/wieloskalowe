@@ -2,16 +2,14 @@ package automatKomorkowy.DwoDimension.ziarna;
 
 import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.Export.AvaibleNeighGetters;
 import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.Export.ZiarnoMooreneighGetter;
-import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.ZiarnoNeighGetterIf;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
 
 /**
  * Created by Lach on 2017-05-09.
  */
-public class naiwnyRozrost {
+public class naiwnyRozrost{
     private JButton button1;
     private JTextField sizeXTextField;
     private JPanel panel1;
@@ -26,11 +24,21 @@ public class naiwnyRozrost {
     private JTextField regularSpawnXTextField;
     private JButton spawnZPromieniemButton;
     private JTextField promienTextField1;
-    private JCheckBox spawnowanieKlikniecemCheckBox;
     private JButton rekrystalizationButton;
     private JTextField textField1;
     private JButton monteCarlosButton;
     private JTextField textField2;
+    private JCheckBox shapeControlCheckBox;
+    private JTextField shapeControlChance;
+    private JTextPane shapeControlChanceTextPane;
+    private JLabel activeToolLabel;
+    private JButton monocolorRemainingButton;
+    private JComboBox comboBox2;
+    private JButton drawBoundariesButton;
+    private JButton eraseButBoundariesButton;
+    private JComboBox comboBox3;
+    private JTextField textField3;
+    private JButton placeInclusionsOnBorderButton;
     public boolean paused;
     public ZiarnaField k;
     public GUIScreen sele;
@@ -51,15 +59,25 @@ public class naiwnyRozrost {
 
     public naiwnyRozrost()
     {
-        comboBox1.setModel(new DefaultComboBoxModel(AvaibleNeighGetters.values()));
+        //comboBox1.setModel(new DefaultComboBoxModel(AvaibleNeighGetters.values()));
+        //k.setNeighGetter(AvaibleNeighGetters.MOORE.getObj());
 
         ActionListener act = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+
                 if(e.getSource()==button1)
                 {
                     k.setPaused(!k.isPaused());
                     SetPauseButtonLabel();
+                }
+                else if(e.getSource()==monocolorRemainingButton)
+                {
+                    k.MonocolorEveryGrain();
+                }
+                else if(e.getSource()==shapeControlChance)
+                {
+                    k.setGrainBoundaryShapeControlChance(Double.parseDouble(shapeControlChance.getText()));
                 }
                 else if(e.getSource()==spawnButton)
                 {
@@ -73,6 +91,10 @@ public class naiwnyRozrost {
                 {
                     k.setCrossBorders(crossBordersCheckBox.isSelected()) ;
                 }
+                else if(e.getSource()==shapeControlCheckBox)
+                {
+                    k.setGrainBoundaryShapeControl(shapeControlCheckBox.isSelected());
+                }
                 else if(e.getSource()==comboBox1)
                 {
                     k.setNeighGetter(((AvaibleNeighGetters)comboBox1.getSelectedItem()).getObj());
@@ -80,10 +102,6 @@ public class naiwnyRozrost {
                 else if(e.getSource()==spawnRównomiernyButton)
                 {
                     k.SetNewRegularSources(0,0,k.GetXSize()-1,k.GetYSize()-1,Integer.parseInt(regularSpawnXTextField.getText()),Integer.parseInt(regularSpawnYTextField.getText()));
-                }
-                else if(e.getSource()==spawnowanieKlikniecemCheckBox)
-                {
-                    k.setClickable(spawnowanieKlikniecemCheckBox.isSelected());
                 }
                 else if(e.getSource()==spawnZPromieniemButton)
                 {
@@ -103,9 +121,11 @@ public class naiwnyRozrost {
         crossBordersCheckBox.addActionListener(act);
         comboBox1.addActionListener(act);
         spawnRównomiernyButton.addActionListener(act);
-        spawnowanieKlikniecemCheckBox.addActionListener(act);
         spawnZPromieniemButton.addActionListener(act);
         rekrystalizationButton.addActionListener(act);
+        shapeControlCheckBox.addActionListener(act);
+        shapeControlChance.addActionListener(act);
+        monocolorRemainingButton.addActionListener(act);
         textField1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -120,6 +140,65 @@ public class naiwnyRozrost {
                 k.setDoMonteCarlo(true);
             }
         });
+
+        mainPane.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent keyEvent) {
+                super.keyReleased(keyEvent);
+            }
+        });
+        comboBox2.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                if (comboBox2.getSelectedIndex() == 0) {
+                    //activeToolLabel.setText("click spawn");
+                    k.setSelectedToolID(0);
+                } else if (comboBox2.getSelectedIndex() == 1) {
+                    //activeToolLabel.setText("inclusion");
+                    k.setSelectedToolID(1);
+                } else if (comboBox2.getSelectedIndex() == 2) {
+                    //activeToolLabel.setText("erase");
+                    k.setSelectedToolID(2);
+                }
+            }
+        });
+        drawBoundariesButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                double percentage = k.DrawBoundaries();
+                System.out.println(percentage);
+            }
+        });
+        eraseButBoundariesButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                k.ClearButBlack();
+            }
+        });
+        comboBox3.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                if (comboBox2.getSelectedIndex() == 0) {
+                    //activeToolLabel.setText("click spawn");
+                    k.inclusionTypeSquare = true;
+                } else if (comboBox2.getSelectedIndex() == 1) {
+                    //activeToolLabel.setText("inclusion");
+                    k.inclusionTypeSquare = false;
+                }
+            }
+        });
+        textField3.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                k.inclusionSize = Integer.valueOf(textField3.getText());
+            }
+        });
+        placeInclusionsOnBorderButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                k.AddInclusionsAtRandomBoundaries(Integer.parseInt(randomCountTextField.getText()));
+            }
+        });
     }
 
     public static void main(String[] args) {
@@ -131,6 +210,8 @@ public class naiwnyRozrost {
         frame.setVisible(true);
         gui.SetZiarnaField(new ZiarnaField());
         gui.k.setNeighGetter(new ZiarnoMooreneighGetter());
+        gui.k.setClickable(true);
+        gui.k.setSelectedToolID(0);
 
         while(true)
         {
@@ -149,11 +230,11 @@ public class naiwnyRozrost {
         boolean paused = k.isPaused();
         if(paused)
         {
-            button1.setText("Wznow");
+            button1.setText("continue");
         }
         else
         {
-            button1.setText("Pauza");
+            button1.setText("pause");
         }
     }
     public void SetNewSizeButton()

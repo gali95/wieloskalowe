@@ -1,5 +1,8 @@
 package automatKomorkowy.DwoDimension.ziarna;
 
+import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.Export.ZiarnoFurtherMooreNeighGetter;
+import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.Export.ZiarnoMooreneighGetter;
+import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.Export.ZiarnoNeumanNeighGetter;
 import automatKomorkowy.DwoDimension.ziarna.ZiarnoNeighGetter.ZiarnoNeighGetterIf;
 import automatKomorkowy.DwoDimension.ziarna.rekry.Rekrystalizacja;
 
@@ -9,6 +12,8 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Random;
 
+import static java.lang.StrictMath.abs;
+import static java.lang.StrictMath.sqrt;
 import static java.util.Collections.shuffle;
 
 /**
@@ -17,6 +22,7 @@ import static java.util.Collections.shuffle;
 public class ZiarnaField {
 
     private ArrayList<Ziarno> contentSources;
+    private Ziarno blackNonGrowingZiarno;
     private Ziarno[][] content;
     private ZiarnoNeighGetterIf neighGetter;
     private boolean paused;
@@ -27,7 +33,54 @@ public class ZiarnaField {
     private boolean doRekryst;
     private int rekrLeftover;
     private boolean doMonteCarlo;
+    private boolean grainBoundaryShapeControl;
+    private double grainBoundaryShapeControlChance = 0.2;
     private LinkedList<Ziarno> randomZiarnos;
+    private int selectedToolID;
+    private ZiarnoNeighGetterIf hardcodedMooreNeighGetter;
+    public boolean inclusionTypeSquare = true;
+    public int inclusionSize = 1;
+
+    public int getSelectedToolID() {
+        return selectedToolID;
+    }
+
+    public void setSelectedToolID(int selectedToolID) {
+        this.selectedToolID = selectedToolID;
+    }
+
+    public boolean isGrainBoundaryShapeControl() {
+        return grainBoundaryShapeControl;
+    }
+
+    public void setGrainBoundaryShapeControl(boolean grainBoundaryShapeControl) {
+        this.grainBoundaryShapeControl = grainBoundaryShapeControl;
+    }
+
+    public double getGrainBoundaryShapeControlChance() {
+        return grainBoundaryShapeControlChance;
+    }
+
+    public void setGrainBoundaryShapeControlChance(double grainBoundaryShapeControlChance) {
+        if(grainBoundaryShapeControlChance > 1)
+        {
+            grainBoundaryShapeControlChance = 1;
+        }
+        else if(grainBoundaryShapeControlChance < 0)
+        {
+            grainBoundaryShapeControlChance = 0;
+        }
+        this.grainBoundaryShapeControlChance = grainBoundaryShapeControlChance;
+    }
+
+    public void MonocolorEveryGrain()
+    {
+        for(Ziarno grain: contentSources)
+        {
+            if(grain.getMainInfo() != null)
+                grain.getMainInfo().setCol(new Color(255,0,255));
+        }
+    }
 
     public boolean isDoMonteCarlo() {
         return doMonteCarlo;
@@ -57,6 +110,7 @@ public class ZiarnaField {
     {
         paused = true;
         rekrLeftover = 100;
+        hardcodedMooreNeighGetter = new ZiarnoMooreneighGetter();
     }
     
     public void RekrystalizacjaInit()
@@ -106,14 +160,53 @@ public class ZiarnaField {
         this.paused = paused;
     }
 
-    private WholeZiarnoInfo GetMostOftenNeighbour(int x, int y)
+    private boolean IsCellOnBorder(int x, int y)
     {
-        class ZiarnoCounter
+        Ziarno[] neigh = hardcodedMooreNeighGetter.GetNeigh(content,x,y,crossBorders);
+
+        if(neigh==null)
         {
-            public WholeZiarnoInfo z;
-            public int c;
+            return false;
         }
 
+        ZiarnoCounter[] ziarC = new ZiarnoCounter[neigh.length];
+        int ziarCFilled = 0;
+        boolean insertNewIntoZiarC;
+
+        for(int i=0;i<neigh.length;i++)
+        {
+            if(neigh[i].getMainInfo()==blackNonGrowingZiarno.getMainInfo()) continue;
+            insertNewIntoZiarC = true;
+            for(int j=0;j<ziarCFilled;j++)
+            {
+                if(neigh[i].getMainInfo()==ziarC[j].z)
+                {
+                    ziarC[j].c++;
+                    insertNewIntoZiarC = false;
+                    break;
+                }
+
+            }
+            if(insertNewIntoZiarC)
+            {
+                ziarC[ziarCFilled] = new ZiarnoCounter();
+                ziarC[ziarCFilled].z = neigh[i].getMainInfo();
+                ziarC[ziarCFilled++].c = 1;
+            }
+        }
+
+        if(ziarCFilled > 1)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    private WholeZiarnoInfo GetMostOftenNeighbour(int x, int y)
+    {
         Ziarno[] neigh = neighGetter.GetNeigh(content,x,y,crossBorders);
 
         if(neigh==null)
@@ -127,7 +220,7 @@ public class ZiarnaField {
 
         for(int i=0;i<neigh.length;i++)
         {
-            if(neigh[i]==null || neigh[i].isEmpty()) continue;
+            if(neigh[i]==null || neigh[i].isEmpty() || neigh[i].getMainInfo().stopped) continue;
             insertNewIntoZiarC = true;
             for(int j=0;j<ziarCFilled;j++)
             {
@@ -158,22 +251,76 @@ public class ZiarnaField {
             if(ziarC[i].c == highest) dolosowania.add(i);
         }
         Random rand = new Random();
+        if(dolosowania.size() < 1)
+        {
+            return null;
+        }
+
 
         return ziarC[dolosowania.get(rand.nextInt(dolosowania.size()))].z;
     }
 
+    private WholeZiarnoInfo GetMostOftenNeighbour(int x, int y, GetMostOftenNeighbourRule rule, ZiarnoNeighGetterIf neighType)
+    {
+        Ziarno[] neigh = neighType.GetNeigh(content,x,y,crossBorders);
+
+        if(neigh==null)
+        {
+            return null;
+        }
+
+        ZiarnoCounter[] ziarC = new ZiarnoCounter[neigh.length];
+        int ziarCFilled = 0;
+        boolean insertNewIntoZiarC;
+
+        for(int i=0;i<neigh.length;i++)
+        {
+            if(neigh[i]==null || neigh[i].isEmpty() || neigh[i].getMainInfo().stopped) continue;
+            insertNewIntoZiarC = true;
+            for(int j=0;j<ziarCFilled;j++)
+            {
+                if(neigh[i].getMainInfo()==ziarC[j].z)
+                {
+                    ziarC[j].c++;
+                    insertNewIntoZiarC = false;
+                    break;
+                }
+
+            }
+            if(insertNewIntoZiarC)
+            {
+                ziarC[ziarCFilled] = new ZiarnoCounter();
+                ziarC[ziarCFilled].z = neigh[i].getMainInfo();
+                ziarC[ziarCFilled++].c = 1;
+            }
+        }
+
+        return rule.SelectNeighbour(ziarC,ziarCFilled);
+    }
+
+    public void FreezeAll()
+    {
+        for(Ziarno grain: contentSources)
+        {
+            grain.getMainInfo().stopped = true;
+        }
+    }
+
     public void NextIteration() {
 
-        if(content == null) return;
-        if(paused) return;
-        if(doRekryst)
-        {
+        if (content == null) return;
+        if (paused) return;
+        if (doRekryst) {
             rekrInter.NextIteration(content);
             return;
         }
-        if(doMonteCarlo)
-        {
+        if (doMonteCarlo) {
             MonteCarloNextIteration();
+            return;
+        }
+        if (grainBoundaryShapeControl)
+        {
+            GrainBoundaryShapeControlNextIteration();
             return;
         }
         Ziarno newContent[][] = new Ziarno[content.length][content[0].length];
@@ -182,10 +329,18 @@ public class ZiarnaField {
             for (int j = 0; j < content[0].length; j++) {
                 newContent[i][j] = content[i][j];
                 if (content[i][j] != null && content[i][j].isEmpty()) {
+                    if (content[i][j].getMainInfo() == blackNonGrowingZiarno.getMainInfo())
+                    {
+                        continue;
+                    }
                     WholeZiarnoInfo hegemon = GetMostOftenNeighbour(i, j);
                     if (hegemon != null) {
                         newContent[i][j].setFreshMainInfo(hegemon);
                         freeCellsNumber--;
+                        if(freeCellsNumber == 0)
+                        {
+                            FreezeAll();
+                        }
                     }
                 }
             }
@@ -199,6 +354,62 @@ public class ZiarnaField {
         content = newContent;
 
     }
+
+    private void GrainBoundaryShapeControlNextIteration()
+    {
+        Ziarno newContent[][] = new Ziarno[content.length][content[0].length];
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++) {
+                newContent[i][j] = content[i][j];
+                if (content[i][j] != null && content[i][j].isEmpty()) {
+
+
+                    AtLeastX firstRule = new AtLeastX(5);
+                    WholeZiarnoInfo newZiarno = GetMostOftenNeighbour(i,j,firstRule, new ZiarnoMooreneighGetter());
+
+                    if(newZiarno == null)
+                    {
+                        AtLeastX secondAndThirdRule = new AtLeastX(3);
+                        newZiarno = GetMostOftenNeighbour(i,j,secondAndThirdRule, new ZiarnoNeumanNeighGetter());
+                        if(newZiarno == null)
+                        {
+                            newZiarno = GetMostOftenNeighbour(i,j,secondAndThirdRule, new ZiarnoFurtherMooreNeighGetter());
+                            if(newZiarno == null)
+                            {
+                                Random rand = new Random();
+                                double roll = rand.nextDouble();
+
+                                if(roll < grainBoundaryShapeControlChance)
+                                {
+                                    newZiarno = GetMostOftenNeighbour(i,j);
+                                }
+                            }
+                        }
+                    }
+
+                    if(newZiarno != null)
+                    {
+                        newContent[i][j].setFreshMainInfo(newZiarno);
+                        freeCellsNumber--;
+                        if(freeCellsNumber == 0)
+                        {
+                            FreezeAll();
+                        }
+                    }
+
+                }
+            }
+        }
+        for (int i = 0; i < newContent.length; i++)
+        {
+            for (int j = 0; j < newContent[0].length; j++) {
+                newContent[i][j].ReplaceOldMainInfo();
+            }
+        }
+        content = newContent;
+    }
+
 
     public void CreateEmpty(int x,int y)
     {
@@ -214,6 +425,11 @@ public class ZiarnaField {
         contentSources = new ArrayList<>();
         doRekryst = false;
         doMonteCarlo = false;
+
+        blackNonGrowingZiarno = new Ziarno();
+        blackNonGrowingZiarno.setMainInfo(new WholeZiarnoInfo());
+        blackNonGrowingZiarno.setCol(new Color(0,0,0));
+        blackNonGrowingZiarno.getMainInfo().stopped = true;
     }
 
     public int GetXSize()
@@ -390,12 +606,177 @@ public class ZiarnaField {
     public void FieldClicked(int x,int y)
     {
         if(!clickable) return;
-        if(content[x][y].isEmpty())
+        if(selectedToolID == 0)   // click spawn
         {
-            Ziarno created = CreateRandomZiarnos(1).get(0);
-            content[x][y] = created;
-            freeCellsNumber--;
+            if(content[x][y].isEmpty())
+            {
+                Ziarno created = CreateRandomZiarnos(1).get(0);
+                content[x][y] = created;
+                freeCellsNumber--;
+            }
         }
+        else if(selectedToolID == 1)
+        {
+            AddInclusion(x,y);
+        }
+        else if(selectedToolID == 2)
+        {
+            RemoveGrain(content[x][y].getMainInfo());
+        }
+
+    }
+
+    public void DrawBlackCircle(int centerX, int centerY)
+    {
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++)
+            {
+                double distance = sqrt((i - centerX)*(i - centerX) + (j - centerY)*(j - centerY));
+                if(distance < inclusionSize)
+                {
+                    content[i][j].setMainInfo(blackNonGrowingZiarno.getMainInfo());
+                    content[i][j].setCol(content[i][j].getMainInfo().getCol());
+                }
+            }
+        }
+    }
+
+    public void DrawBlackSquare(int centerX, int centerY)
+    {
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++)
+            {
+                double distance = sqrt((i - centerX)^2 + (j - centerY)^2);
+                if(abs(i - centerX) < inclusionSize && abs(j - centerY) < inclusionSize)
+                {
+                    content[i][j].setMainInfo(blackNonGrowingZiarno.getMainInfo());
+                    content[i][j].setCol(content[i][j].getMainInfo().getCol());
+                }
+            }
+        }
+    }
+
+    public void AddInclusion(int x,int y) {
+
+        if (inclusionTypeSquare)
+        {
+            DrawBlackSquare(x,y);
+        }
+        else
+        {
+            DrawBlackCircle(x,y);
+        }
+    }
+
+    public double DrawBoundaries()
+    {
+        double cellMaxnumber = content.length * content[0].length;
+        double boundariesNumber = 0;
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++)
+            {
+                if(IsCellOnBorder(i,j))
+                {
+                    content[i][j].setMainInfo(blackNonGrowingZiarno.getMainInfo());
+                    content[i][j].setCol(content[i][j].getMainInfo().getCol());
+                    boundariesNumber++;
+                }
+            }
+        }
+        return boundariesNumber / cellMaxnumber;
+    }
+
+    public void ClearButBlack()
+    {
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++)
+            {
+                if(content[i][j].getMainInfo() != blackNonGrowingZiarno.getMainInfo())
+                {
+                    content[i][j].setMainInfo(null);
+                    freeCellsNumber++;
+                }
+            }
+        }
+        contentSources = null;
+    }
+
+    public ArrayList<Vector2> GetPlacesOnBorder()
+    {
+        ArrayList<Vector2> borderOnes = new ArrayList<>();
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++)
+            {
+                if(IsCellOnBorder(i,j))
+                {
+                    Vector2 added = new Vector2();
+                    added.x = i;
+                    added.y = j;
+                    borderOnes.add(added);
+                }
+            }
+        }
+        return borderOnes;
+    }
+
+    public void AddInclusionsAtRandomBoundaries(int number)
+    {
+        double minDistance = 2* inclusionSize;
+        ArrayList<Vector2> possiblePlaces = GetPlacesOnBorder();
+        Random rand = new Random();
+        Vector2 newInclusionPlaces[] = new Vector2[number];
+        Vector2 newLocation;
+        for(int i=0;i<number;i++)
+        {
+            int tryNumber = 10000;
+            boolean enoughDistance = true;
+            do {
+                newLocation = possiblePlaces.get(rand.nextInt(possiblePlaces.size()));
+                for(int j=0;j<i;j++)
+                {
+                     double distance = sqrt((newLocation.x - newInclusionPlaces[j].x)*(newLocation.x - newInclusionPlaces[j].x) + (newLocation.y - newInclusionPlaces[j].y)*(newLocation.y - newInclusionPlaces[j].y));
+                     if(distance < minDistance)
+                     {
+                         enoughDistance = false;
+                         break;
+                     }
+                }
+                tryNumber--;
+                if(tryNumber == 0)
+                {
+                    System.out.println("failed looking for optimal places, try again!");
+                }
+            }
+            while(!enoughDistance);
+            newInclusionPlaces[i] = new Vector2();
+            newInclusionPlaces[i].x = newLocation.x;
+            newInclusionPlaces[i].y = newLocation.y;
+        }
+        for(int i=0;i<number;i++)
+        {
+            AddInclusion(newInclusionPlaces[i].x,newInclusionPlaces[i].y);
+        }
+    }
+
+    public void RemoveGrain(WholeZiarnoInfo toRemove)
+    {
+        for (int i = 0; i < content.length; i++)
+        {
+            for (int j = 0; j < content[0].length; j++)
+            {
+                if(content[i][j].getMainInfo() == toRemove)
+                {
+                    content[i][j].setMainInfo(null);
+                    freeCellsNumber++;
+                }
+            }
+        }
+        contentSources.remove(toRemove);
     }
 
     public boolean IsDrawable()
